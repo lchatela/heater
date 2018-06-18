@@ -25,6 +25,7 @@ const int buttonPin = 45;// the number of the pushbutton pin
 const int enableAnalogPin = 43; //to avoid current drain when arduino is off
 const int ledPin =  13;      // the number of the LED pin
 const int relayPompePin = 2; // pin to stop the pump relay
+const int relayProjectorPin = 3; //pin to activate the projector
 
 long currentMillis = 0;
 
@@ -89,8 +90,8 @@ byte controlPins[] = {B00000000,
 
 // holds incoming values from 74HC4067
 float muxValues[] = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,};
-float factor[] = {1.0,1.0,0.117,1.0,1.0, 0.129, 0.1265, 0.1245, 0.3171, 0.1241, 0.03, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,};
-float offset[] = {0.0,0.0,149.3,0.0,0.0, 169.15, 164.87, 161.2, 370.29, 160.36, -13.8, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,};
+float factor[] = {1.0, 1.0, 0.117, 1.0, 1.0, 0.129, 0.1265, 0.1245, 0.3171, 0.1241, 0.03, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,};
+float offset[] = {0.0, 0.0, 149.3, 0.0, 0.0, 169.15, 164.87, 161.2, 370.29, 160.36, -1.8, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,};
 
 int16_t adc0 = 0;
 int stat = 0;
@@ -105,7 +106,7 @@ const unsigned long analogDelay = 60L * 1000L;
 
 #if CHECK_RELAY == 1
 long lastRelayMillis = 0;
-const unsigned long relayDelay = 15L * 1000L;
+const unsigned long relayDelay = 20L * 1000L;
 # endif //end check relay
 
 #define Pin13LED         13
@@ -153,17 +154,17 @@ void setup() {
   pinMode(buttonPin, INPUT_PULLUP);
   pinMode(Pin13LED, OUTPUT);
   pinMode(relayPompePin, OUTPUT);
-  pinMode(3,OUTPUT);
-  pinMode(4,OUTPUT);
-  pinMode(5,OUTPUT);
-  pinMode(6,OUTPUT);
-  pinMode(7,OUTPUT);
-  digitalWrite(relayPompePin,HIGH);
-  digitalWrite(3,HIGH);
-  digitalWrite(4,HIGH);
-  digitalWrite(5,HIGH);
-  digitalWrite(6,HIGH);
-  digitalWrite(7,HIGH);
+  pinMode(3, OUTPUT);
+  pinMode(4, OUTPUT);
+  pinMode(5, OUTPUT);
+  pinMode(6, OUTPUT);
+  pinMode(7, OUTPUT);
+  digitalWrite(relayPompePin, HIGH);
+  digitalWrite(3, HIGH);
+  digitalWrite(4, HIGH);
+  digitalWrite(5, HIGH);
+  digitalWrite(6, HIGH);
+  digitalWrite(7, HIGH);
 
 
   Serial.begin(9600);
@@ -282,19 +283,19 @@ void checkAlertStatus() {
   }
 
 
- 
+
 
   // check if the pushbutton is pressed. If it is, the buttonState is HIGH:
   if (buttonState == LOW) {
 
     errorDetected = true;
-    nbPress=1;
+    nbPress = 1;
     Serial.println("error detected");
 
 
     long startErrorCount = millis();
     Serial.println(startErrorCount);
-    
+
     delay(800);
     //start looping to count nbPress
     for (int j = 0; j < 15; j++) {
@@ -305,7 +306,7 @@ void checkAlertStatus() {
       }
       //break if we are monitoring for more than 2 secs
       //or max error number is 3
-      if (millis()-startErrorCount>3000 || nbPress==3) {
+      if (millis() - startErrorCount > 3000 || nbPress == 3) {
         Serial.println("breaking");
         break;
       }
@@ -313,7 +314,7 @@ void checkAlertStatus() {
 
     }
 
-    
+
     errorType = nbPress;
     Serial.print(F("Error Type "));
     Serial.println(errorType);
@@ -326,10 +327,10 @@ void checkAlertStatus() {
     }
 
     previousMillis = currentMillis;
-  
+
     // turn LED on:
     digitalWrite(ledPin, HIGH);
-   
+
   }
 #endif // was CHECK_ALERT == 1
 }
@@ -339,20 +340,40 @@ void checkAlertStatus() {
 void checkRelay() {
 #if CHECK_RELAY == 1
 
- if (currentMillis - lastRelayMillis > relayDelay) {
-  int value = ThingSpeak.readIntField(511114, 1, "DE8V7G7WCCDALMC9");
-  
-  if (value == 1) {
-    digitalWrite(relayPompePin, HIGH);
-    Serial.println("pompe up");
-  }
-  else {
-    digitalWrite(relayPompePin, LOW);
-    Serial.println("pompe down");
+  if (currentMillis - lastRelayMillis > relayDelay) {
+    int pumpValue = ThingSpeak.readIntField(511114, 1, "DE8V7G7WCCDALMC9");
+    int projectorValue = ThingSpeak.readIntField(511114, 2, "DE8V7G7WCCDALMC9");
 
+    if (pumpValue == 1) {
+      digitalWrite(relayPompePin, HIGH);
+      Serial.println("pompe up");
+    }
+    else if (pumpValue == 0) {
+      digitalWrite(relayPompePin, LOW);
+      Serial.println("pompe down");
+
+    }
+    else {
+      Serial.print("pompe unknown value");
+      Serial.println(pumpValue);
+    }
+
+    if (projectorValue == 1) {
+      digitalWrite(relayProjectorPin, LOW);
+      Serial.println("projector up");
+    }
+    else if (projectorValue == 0) {
+      digitalWrite(relayProjectorPin, HIGH);
+      Serial.println("projector down");
+
+    }
+    else
+    {
+      Serial.print("pompe unknown value");
+      Serial.println(pumpValue);
+    }
+    lastRelayMillis = currentMillis;
   }
-  lastRelayMillis = currentMillis;
- }
 
 #endif
 }
