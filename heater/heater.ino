@@ -1,9 +1,11 @@
 #include <SPI.h>
 #include <Ethernet.h>
 #include <ThingSpeak.h>
+
+#define MQTT_VERSION 3
+#include <PubSubClient.h>
 #include <Wire.h>
 #include <Adafruit_ADS1015.h>
-
 
 
 float Voltage = 0.0;
@@ -14,6 +16,7 @@ float Voltage = 0.0;
 #define CHECK_RELAY 1
 #define READ_RS485 0
 #define ETHERNET_ON 1
+#define MQTT_ON 0
 
 
 Adafruit_ADS1115 ads(0x48);
@@ -50,6 +53,7 @@ const unsigned long emailInterval = 3600L * 1000L;
 #endif
 int errorType = 0;
 EthernetClient client;
+EthernetClient clientMQTT;
 byte mac[] = { 0x90, 0xA2, 0xDA, 0x00, 0x59, 0x67 };
 byte ip[] = { 192, 168, 0, 66 };
 byte google[] = { 64, 233, 187, 99 }; // Google
@@ -147,6 +151,50 @@ int fRead ()
 RS485 myChannel (fRead, fAvailable, NULL, 250);
 #endif
 #define relayPin1         44
+
+
+#if MQTT_ON == 1
+char MQTTserver[] = "192.168.0.77";
+
+void callback(char* topic, byte* payload, unsigned int length) {
+  Serial.print("Message arrived [");
+  Serial.print(topic);
+  Serial.print("] ");
+  for (int i = 0; i < length; i++) {
+    Serial.print((char)payload[i]);
+  }
+  Serial.println();
+}
+
+PubSubClient MQTTclient(clientMQTT);
+
+void reconnect() {
+  // Loop until we're reconnected
+  int retry = 3;
+  while (!MQTTclient.connected()) {
+    retry--;
+    if (retry==0) {
+      break;
+    }
+    Serial.print("Attempting MQTT connection...");
+    // Attempt to connect
+    if (MQTTclient.connect("arduinoClient")) {
+      Serial.println("connected");
+      // Once connected, publish an announcement...
+      MQTTclient.publish("eiffel/texte", "Arduino connected");
+      // ... and resubscribe
+      MQTTclient.subscribe("eiffel/texte");
+    } else {
+      Serial.print("failed, rc=");
+      Serial.print(MQTTclient.state());
+      Serial.println(" try again in 5 seconds");
+      // Wait 5 seconds before retrying
+      delay(5000);
+    }
+  }
+}
+#endif // MQTT_ON
+
 void setup() {
   // initialize the LED pin as an output:
   pinMode(ledPin, OUTPUT);
@@ -212,6 +260,12 @@ void setup() {
   //myChannel.begin ();
 
   Serial.println("RS started");
+#endif
+
+
+#if MQTT_ON == 1
+  MQTTclient.setServer(MQTTserver, 1883);
+  MQTTclient.setCallback(callback);
 #endif
 
 }
@@ -407,6 +461,12 @@ void loop() {
   checkAlertStatus();
   checkRelay();
   readRS485();
+#if MQTT_ON == 1
+  if (!MQTTclient.connected()) {
+    reconnect();
+  }
+  MQTTclient.publish("heater/message", "Message");
+#endif //MQTT
   delay(10);
 
 
