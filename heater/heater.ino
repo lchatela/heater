@@ -2,7 +2,7 @@
 #include <Ethernet.h>
 #include <ThingSpeak.h>
 
-#define MQTT_VERSION 3
+//#define MQTT_VERSION 3
 #include <PubSubClient.h>
 #include <Wire.h>
 #include <Adafruit_ADS1015.h>
@@ -12,8 +12,8 @@ float Voltage = 0.0;
 #define DEBUG 1         //DEBUG=1 works, DEBUG=0 works now!
 #define ANALOG_READ 1
 #define CHECK_ALERT 1
-#define CHECK_RELAY 1
-#define READ_RS485 0
+#define CHECK_RELAY 0
+#define READ_RS485 1
 #define ETHERNET_ON 1
 #define MQTT_ON 1
 
