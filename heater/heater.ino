@@ -13,7 +13,7 @@ float Voltage = 0.0;
 #define ANALOG_READ 1
 #define CHECK_ALERT 1
 #define CHECK_RELAY 0
-#define READ_RS485 1
+#define READ_RS485 0
 #define ETHERNET_ON 1
 #define MQTT_ON 1
 
