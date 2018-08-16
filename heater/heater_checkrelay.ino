@@ -60,48 +60,79 @@ void updateRelay(char * topic, char * value) {
   Serial.print("] = [");
   Serial.print(value);
   Serial.println("]");
-  
-  if (strcmp(topic,"pool/pump")==0) {
+
+  if (strcmp(topic, "pool/pump") == 0) {
     Serial.println("entering pool/pump");
-    if (strcmp(value,"1")==0) {
+    if (strcmp(value, "1") == 0) {
       digitalWrite(relayPompePin, HIGH);
-    
+
       logMessage("Pompe up", true);
-      
-    } else if (strcmp(value,"0")==0) {
+      EEPROM.write(0, 1);
+
+    } else if (strcmp(value, "0") == 0) {
       digitalWrite(relayPompePin, LOW);
-      
+
       logMessage("Pompe down", true);
-      
+      EEPROM.write(0, 0);
+
 
     }
     else {
       Serial.print("error");
       Serial.println(value);
       logMessages("Pompe unknown value" , value, true);
-      
+
     }
   }
 
 
-  if (strcmp(topic ,"pool/projo") == 0){
-    if (strcmp(value,"1")==0) {
+  if (strcmp(topic , "pool/projo") == 0) {
+    if (strcmp(value, "1") == 0) {
       digitalWrite(relayProjectorPin, LOW);
-      
+
       logMessage("Projo up", true);
-      
-    } else if (strcmp(value, "0")==0) {
+      EEPROM.write(1, 1);
+
+    } else if (strcmp(value, "0") == 0) {
       digitalWrite(relayProjectorPin, HIGH);
       logMessage("Projo down", true);
-      
+      EEPROM.write(1, 0);
+
 
     }
     else {
-      
-      logMessages("projo unknown value " ,value, true);
+
+      logMessages("projo unknown value " , value, true);
     }
   }
 #endif //MQTT_ON
 
+
+
+}
+
+void checkRelayAtRestart() {
+  //get EEPROM values
+  int value = 0;
+
+  //0 is for the pump
+  value = EEPROM.read(0);
+  Serial.print("pump is stored as ");
+  Serial.println(value);
+  if (value == 1) {
+    digitalWrite(relayPompePin, HIGH);
+  } else {
+    digitalWrite(relayPompePin, LOW);
+  }
+
+  //1 is for the projo
+  value = EEPROM.read(1);
+  Serial.print("projo is stored as ");
+  Serial.println(value);
+  if (value == 1) {
+    digitalWrite(relayProjectorPin, LOW);
+  } else {
+    digitalWrite(relayProjectorPin, HIGH);
+  }
 }
 

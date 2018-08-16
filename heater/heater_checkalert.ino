@@ -41,7 +41,7 @@ void checkAlertStatus() {
 
 
 
-  // check if the pushbutton is pressed. If it is, the buttonState is HIGH:
+  // check if the pushbutton is pressed. If it is, the buttonState is LOW:
   if (buttonState == LOW) {
 
     errorDetected = true;

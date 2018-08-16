@@ -1,6 +1,7 @@
 #include <SPI.h>
 #include <Ethernet.h>
 #include <ThingSpeak.h>
+#include <EEPROM.h>
 
 //#define MQTT_VERSION 3
 #include <PubSubClient.h>
@@ -31,6 +32,10 @@ long currentMillis = 0;
 int errorType = 0;
 EthernetClient client;
 EthernetClient ethernetMQTTclient;
+byte ethernetMaintainValue;
+bool ethernetConnection;
+long ethernetConnectionTime=0;
+const long ethernetConnectionRetry=60L*1000L;
 PubSubClient MQTTclient(ethernetMQTTclient);
 Adafruit_ADS1115 ads(0x48);
 

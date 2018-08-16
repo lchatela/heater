@@ -23,27 +23,31 @@ void setup() {
 
 
   Serial.begin(115200);
+  
 #if ETHERNET_ON == 1
   Serial.println("Ethernet start");
   //logMessage("Ethernet start",true);
-
+  ethernetConnection = true;
   if (Ethernet.begin(mac) == 0 ) {
+    ethernetConnection = false;
     Serial.println("Connection failed");
+
   }
-  //Ethernet.begin(mac, ip);
+  ethernetConnectionTime = millis();
+
   delay(1000);
 
   Serial.println("connecting...");
 
 
 
-  Serial.println("ThingSpeak start");
-  if (ThingSpeak.begin(client)) {
-    Serial.println("OK");
-  } else {
+  //Serial.println("ThingSpeak start");
+  //if (ThingSpeak.begin(client)) {
+  //  Serial.println("OK");
+  //} else {
 
-    Serial.println("nOK");
-  }
+  //  Serial.println("nOK");
+  //}
 
 
 #endif
@@ -75,8 +79,9 @@ void setup() {
   MQTTclient.setServer(MQTTserver, 1883);
   MQTTclient.setCallback(callback);
 #endif
-
-  logMessage("all started", true);
+  checkRelayAtRestart();
+  logMessage("Arduino heater - restarted", true);
+  
 
 }
 
@@ -96,6 +101,24 @@ void setup() {
 
 void loop() {
 
+  if (ethernetConnection == false && millis() - ethernetConnectionTime > ethernetConnectionRetry) {
+    Serial.println("Retrying connection");
+    ethernetConnection = true;
+    if (Ethernet.begin(mac) == 0 ) {
+      ethernetConnection = false;
+      Serial.println("Connection failed");
+
+    } else {
+      Serial.println("Connection established");
+    }
+    ethernetConnectionTime = millis();
+  }
+
+  ethernetMaintainValue = Ethernet.maintain();
+  if (ethernetMaintainValue > 0) {
+    Serial.print("Ethernet renewal, status:");
+    Serial.println(ethernetMaintainValue);
+  }
 
   if (firstLoop) {
     sendEmail("Arduino restarting", 0);
@@ -107,9 +130,9 @@ void loop() {
   checkAlertStatus();
   checkRelay();
   readRS485();
-  #if MQTT_ON == 1
+#if MQTT_ON == 1
 
-   if (!MQTTclient.connected()) {
+  if (!MQTTclient.connected()) {
     long now = millis();
     if (now - lastReconnectAttempt > 5000) {
       lastReconnectAttempt = now;
@@ -123,8 +146,8 @@ void loop() {
 
     MQTTclient.loop();
   }
-  
-  #endif
+
+#endif
   delay(10);
 
 

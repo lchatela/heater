@@ -1,8 +1,8 @@
 
 #if ANALOG_READ == 1
 //ThingSpeak setup
-char jsonBuffer[500] = "["; // Initialize the jsonBuffer to hold data
-char serverIOT[] = "api.thingspeak.com";
+//char jsonBuffer[500] = "["; // Initialize the jsonBuffer to hold data
+//char serverIOT[] = "api.thingspeak.com";
 /* Collect data once every 15 seconds and post data to ThingSpeak channel once every 2 minutes */
 unsigned long lastConnectionTime = 0; // Track the last connection time
 unsigned long lastThingSpeakUpdateTime = 0; // Track the last update time
@@ -56,25 +56,25 @@ void writeThingSpeak() {
   Serial.println("connecting...");
 
 
-  ThingSpeak.setField(1, errorType);
+  //ThingSpeak.setField(1, errorType);
   MQTTsendFloat("heater/error",errorType);
-  ThingSpeak.setField(2, muxValues[2]);
+  //ThingSpeak.setField(2, muxValues[2]);
   MQTTsendFloat("heater/temp/external",muxValues[2]);
-  ThingSpeak.setField(3, muxValues[5]);
+  //ThingSpeak.setField(3, muxValues[5]);
   MQTTsendFloat("heater/temp/ecs",muxValues[5]);
-  ThingSpeak.setField(4, muxValues[6]);
+  //ThingSpeak.setField(4, muxValues[6]);
   MQTTsendFloat("heater/temp/BTup",muxValues[6]);
-  ThingSpeak.setField(5, muxValues[7]);
+  //ThingSpeak.setField(5, muxValues[7]);
   MQTTsendFloat("heater/temp/BTmed",muxValues[7]);
-  ThingSpeak.setField(6, muxValues[8]);
+  //ThingSpeak.setField(6, muxValues[8]);
   MQTTsendFloat("heater/temp/solarPannel",muxValues[8]);
-  ThingSpeak.setField(7, muxValues[9]);
+  //ThingSpeak.setField(7, muxValues[9]);
   MQTTsendFloat("heater/temp/solarAccu",muxValues[9]);
-  ThingSpeak.setField(8, muxValues[10]);
+  //ThingSpeak.setField(8, muxValues[10]);
   MQTTsendFloat("heater/temp/general",muxValues[10]);
 
 #if DEBUG == 1
-  Serial.println("write to thing speak values ");
+  Serial.println("Analog read debug");
 
   Serial.print(errorType);
   Serial.print(" ");
@@ -88,10 +88,10 @@ void writeThingSpeak() {
 
 #endif
 
-  stat = ThingSpeak.writeFields(483551, "DZGL7BX9DA1I54MN");
+  //stat = ThingSpeak.writeFields(483551, "DZGL7BX9DA1I54MN");
 
   //Serial.println("done write to thing speak");
-  logMessageAndInt("update values in thing speak ",stat, true);
+  //logMessageAndInt("update values in thing speak ",stat, true);
   //Serial.println(stat);
   lastThingSpeakUpdateTime = millis();
 }
@@ -197,7 +197,7 @@ void readAnalog() {
     digitalWrite(enableAnalogPin, LOW);
     lastAnalogMillis = currentMillis;
     if (currentMillis - lastThingSpeakUpdateTime >=  thingSpeakUpdateInterval) {
-      Serial.println("writeThingSpeak");
+      Serial.println("updating analog values");
       writeThingSpeak();
 
 
