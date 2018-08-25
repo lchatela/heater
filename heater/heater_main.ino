@@ -86,6 +86,7 @@ void setup() {
 }
 
 
+
 // __         ______    ______   _______
 ///  |       /      \  /      \ /       \ 
 //$$ |      /$$$$$$  |/$$$$$$  |$$$$$$$  |
@@ -102,22 +103,22 @@ void setup() {
 void loop() {
 
   if (ethernetConnection == false && millis() - ethernetConnectionTime > ethernetConnectionRetry) {
-    Serial.println("Retrying connection");
+    logMessage("Retrying connection", true);
     ethernetConnection = true;
     if (Ethernet.begin(mac) == 0 ) {
       ethernetConnection = false;
-      Serial.println("Connection failed");
+      logMessage("Connection failed", true);
 
     } else {
-      Serial.println("Connection established");
+      logMessage("Connection established", true);
+   
     }
     ethernetConnectionTime = millis();
   }
 
   ethernetMaintainValue = Ethernet.maintain();
   if (ethernetMaintainValue > 0) {
-    Serial.print("Ethernet renewal, status:");
-    Serial.println(ethernetMaintainValue);
+    logMessageAndInt("Ethernet renewal, status:",ethernetMaintainValue,true);
   }
 
   if (firstLoop) {

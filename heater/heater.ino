@@ -43,7 +43,7 @@ byte mac[] = { 0x90, 0xA2, 0xDA, 0x00, 0x59, 0x67 };
 byte ip[] = { 192, 168, 0, 66 };
 byte google[] = { 64, 233, 187, 99 }; // Google
 bool firstLoop=true;
-
+void(* resetFunc) (void) = 0;
 
 #define Pin13LED         13
 #define relayPin1         44

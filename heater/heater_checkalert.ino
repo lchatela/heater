@@ -31,10 +31,14 @@ void checkAlertStatus() {
       errorDetected = false;
       errorType = 0;
       nbPress = 0;
+      MQTTsendFloat("system/arduino1/ram",freeRam()); 
       sendEmail("Status ok", 0);
+      MQTTsendFloat("system/arduino1/ram",freeRam()); 
       emailSent = false;
       digitalWrite(ledPin, LOW);
+       resetFunc();
     }
+   
 
   }
 

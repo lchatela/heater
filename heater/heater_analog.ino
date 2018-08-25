@@ -72,7 +72,12 @@ void writeThingSpeak() {
   MQTTsendFloat("heater/temp/solarAccu",muxValues[9]);
   //ThingSpeak.setField(8, muxValues[10]);
   MQTTsendFloat("heater/temp/general",muxValues[10]);
-
+  MQTTsendFloat("pool/conso/pump",muxValues[11]);
+  MQTTsendFloat("pool/conso/pac",muxValues[12]);
+  // send ram information
+  int ram=freeRam();
+  logMessageAndInt("Ram=", ram, true);
+  MQTTsendFloat("system/arduino1/ram",ram); 
 #if DEBUG == 1
   Serial.println("Analog read debug");
 
@@ -148,6 +153,12 @@ void displayData()
       case 10:
         Serial.print("chaudiere");
         break;
+      case 11:
+        Serial.print("pompe piscine conso");
+        break;
+      case 12:
+        Serial.print("pompe chaleur conso");
+        break;
       default:
         Serial.print("input I");
         Serial.print(i + 1);
@@ -193,6 +204,7 @@ void readAnalog() {
 
     // display captured data
     displayData();
+    
 
     digitalWrite(enableAnalogPin, LOW);
     lastAnalogMillis = currentMillis;
@@ -205,4 +217,13 @@ void readAnalog() {
   }
 #endif
 }
+
+
+int freeRam ()
+{
+  extern int __heap_start, *__brkval;
+  int v;
+  return (int) &v - (__brkval == 0 ? (int) &__heap_start : (int) __brkval);
+}
+
 

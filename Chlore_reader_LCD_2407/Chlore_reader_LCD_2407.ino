@@ -18,6 +18,7 @@ const byte ONE_WIRE_PIN = 4;
 const byte RAIN_PIN = 3;
 const byte LED_PIN = 13;
 boolean ack = false;
+char  buf[50];
 Adafruit_ADS1115 ads(0x48);
 
 
@@ -31,6 +32,19 @@ int SignBit = 0;
 char * sensorSummary;
 //receiver, sender
 SoftwareSerial rs485(8, 5);
+
+struct  {
+  float ORPValue;
+  float PHValue;
+  float RainValue;
+  float WaterTemp;
+  float AirTemp;
+  boolean ORPAlarm;
+  boolean PHAlarm;
+
+
+
+} busMsg;
 
 int fAvailable()
 {
@@ -48,7 +62,7 @@ size_t fWrite (const byte what)
   return rs485.write (what);
 }
 
-RS485 myChannel (fRead, fAvailable, fWrite, 20);
+RS485 myChannel (fRead, fAvailable, fWrite, 60);
 //22414 1172
 float measure[3] = {0, 0};
 int16_t adc[3] = {0, 0};
@@ -65,17 +79,20 @@ U8GLIB_SSD1306_128X64 u8g(U8G_I2C_OPT_NONE);  // I2C / TWI
 
 boolean firstLoop = true;
 const long delayInjection = 1800000;
-long injClStart = delayInjection * -1;
-long injClTime = 0;
-boolean injClReq = false;
-boolean injClInProgress = false;
-char injClTimeStr [3];
+long injStart[2] = {delayInjection * -1, delayInjection * -1};
+long injTime[2] = {0, 0};
+boolean injReq[2] = {false, false};
+boolean injInProgress[2] = {false, false};
+char injTimeStr[2][3];
+byte injRelay[2] = {CL_RELAY_PIN, PH_RELAY_PIN};
+
 char instructions[30];
 char message[30];
 char msgLine1[30] = "";
 char msgLine2[30] = "";
 char msgLine3[30] = "";
-byte alarm[2] = {CL_ALARM_PIN, PH_ALARM_PIN};
+byte alarmPin[2] = {CL_ALARM_PIN, PH_ALARM_PIN};
+boolean alarm[2] = {false,false};
 char alarmStr[2][2] = {"0", "0"};
 boolean state;
 
@@ -89,8 +106,6 @@ void drawAll() {
 
 
 void setup(void) {
-
-
 
   // assign default color value
   if ( u8g.getMode() == U8G_MODE_R3G3B2 ) {
@@ -113,16 +128,17 @@ void setup(void) {
   pinMode (CL_RELAY_PIN, OUTPUT);
   pinMode (PH_RELAY_PIN, OUTPUT);
 
-  pinMode (CL_ALARM_PIN, INPUT);
-  pinMode (PH_ALARM_PIN, INPUT);
+  pinMode (CL_ALARM_PIN, INPUT_PULLUP);
+  pinMode (PH_ALARM_PIN, INPUT_PULLUP);
   pinMode (RAIN_PIN, INPUT);
   pinMode (LED_PIN, OUTPUT);
   myChannel.begin();
   ads.begin();
+  // char * buf = (char*) malloc(50);
 
 }
 
-
+void(* resetFunc) (void) = 0;
 
 
 void loop(void) {
@@ -131,63 +147,61 @@ void loop(void) {
 
   if (firstLoop) {
     u8g.firstPage();
-    strcpy(msgLine2, "Starting");
+    strcpy(msgLine1, "Starting");
     do {
       drawAll();
     } while ( u8g.nextPage() );
-    delay(2000);
+    delay(1000);
     firstLoop = false;
 
   }
-  
-  sensorSummary=readSensor();
 
-  Serial.print("ORPMsg-");
-  Serial.println(sensorSummary);
 
-  //Serial.println(myORPStr);
-  strcpy(msgLine2, "--");
+  strcpy(msgLine1, "Sensor reading");
   u8g.firstPage();
   do {
     drawAll();
   } while ( u8g.nextPage() );
   delay(100);
+  sensorSummary = readSensor();
 
-  char ln1[16];
-  strncpy(ln1, sensorSummary, 16);
-  ln1[16]='\0';
-  char ln2[16];
-  strncpy(ln2,sensorSummary+16,16);
-  ln2[16]='\0';
-  
-  strcpy(msgLine1, ln1);
-  strcpy(msgLine2,ln2);
-  u8g.firstPage();
-  do {
-    drawAll();
-  } while ( u8g.nextPage() );
+
+
+  //  char ln1[16];
+  //  strncpy(ln1, sensorSummary, 16);
+  //  ln1[16] = '\0';
+  //  char ln2[16];
+  //  strncpy(ln2, sensorSummary + 16, 16);
+  //  ln2[16] = '\0';
+  //
+  //
+  //  strcpy(msgLine1, ln1);
+  //  strcpy(msgLine2, ln2);
+  //  u8g.firstPage();
+  //  do {
+  //    drawAll();
+  //  } while ( u8g.nextPage() );
 
   digitalWrite (ENABLE_PIN, LOW);
   digitalWrite (RENABLE_PIN, LOW);
   // wait to be called
   long waitingStart = millis();
   checkInjection();
-  Serial.println(F("waiting for instructions"));
+
   // wait 30 seconds max, then redoing the measure0
   while (millis() - waitingStart < 30000) {
     checkInjection();
     if (myChannel.update())
     {
 
-      Serial.write (myChannel.getData(), myChannel.getLength());
-      Serial.println();
-
       for (int i = 0; i < myChannel.getLength(); i++) {
         instructions[i] = (char)myChannel.getData()[i];
       }
       instructions[myChannel.getLength()] = '\0';
 
-      strcpy(msgLine2, instructions);
+      memset (&msgLine1, '\0', 20);
+      sprintf(msgLine1, "Recv [%s]", instructions);
+      //strcpy(msgLine1, instructions);
       u8g.firstPage();
       do {
         drawAll;
@@ -199,32 +213,43 @@ void loop(void) {
       digitalWrite (ENABLE_PIN, HIGH);
       digitalWrite (RENABLE_PIN, HIGH);
       delay(800);
-      strcpy(msgLine2, "Sending");
+      strcpy(msgLine1, "Sending");
       u8g.firstPage();
       do {
         drawAll;
       } while ( u8g.nextPage() );
-      Serial.println(F("send value"));
-//char message[50]="This is long text sent by me to you";
-//strcpy("This is long text sent by me to you",sensorSummary);
-      myChannel.sendMsg (sensorSummary, sizeof (sensorSummary));
-   //myChannel.sendMsg (message, sizeof (message));
+
+      myChannel.sendMsg ((byte *) &busMsg, sizeof busMsg);
+      strcpy(msgLine1, "Sent");
+      u8g.firstPage();
+      do {
+        drawAll;
+      } while ( u8g.nextPage() );
+
       break;
 
 
     }
   }
 
+  strcpy(msgLine1, "Check injection");
+  u8g.firstPage();
+  do {
+    drawAll;
+  } while ( u8g.nextPage() );
   checkInjection();
-  delay(1000);
+  delay(100);
 }
 
 
 char * readSensor() {
 
 
-  char * buf = (char*) malloc(50);
-  //char buf[50];
+  memset (&busMsg, 0, sizeof busMsg);
+  memset (&buf, '\0', 50);
+
+
+
   for (int k = 0; k < 3; k++) {
     measure[k] = 0;
     ADC_Value[k] = 0;
@@ -237,7 +262,6 @@ char * readSensor() {
 
       ADC_Value[k] = (adc[k] * 0.1875) / 1000;
 
-      Serial.println(ADC_Value[k] );
       measure[k] += ADC_Value[k];
 
 
@@ -250,26 +274,21 @@ char * readSensor() {
     switch (k) {
       case 0:
         sensorValue[k] = ((2.5 - ADC_Value[k]) / 1.037) * 1000;
-        Serial.print(F("ORP measure= "));
+        busMsg.ORPValue = sensorValue[k];
         break;
       case 1:
         sensorValue[k] = -5.70 * ADC_Value[k] + 21.6;
-        Serial.print(F("PH measure= "));
+        busMsg.PHValue = sensorValue[k];
         break;
       case 2:
         sensorValue[k] =  ADC_Value[k] * 1000;
-        Serial.print(F("RAIN measure= "));
+        busMsg.RainValue = sensorValue[k];
         break;
       default:
         break;
     }
 
-    Serial.println(sensorValue[k]);
   }
-
-
-
-
 
 
 
@@ -280,17 +299,18 @@ char * readSensor() {
   dtostrf(sensorValue[2], 4, 0, sensorStr[2]);
   //check alarm
   for (int k = 0; k < 2; k++) {
-    state = digitalRead(alarm[k]);
+    state = digitalRead(alarmPin[k]);
     if (state == LOW) {
       alarm[k] = true;
-      strcpy("1", alarmStr[k]);
+      strcpy( alarmStr[k],"1");
     } else {
       alarm[k] = false;
-      strcpy("0", alarmStr[k]);
+      strcpy(alarmStr[k],"0");
     }
   }
 
-  
+  busMsg.ORPAlarm = alarm[0];
+  busMsg.PHAlarm = alarm[1];
   // ORP[-2000.1/1]{7.12/0}(32.45/12.4)
   // ORP[Chlorevalue/CloreAlarm]{PHValue/PHAlarm}(tempEau/tempAir)
   // keep ORP for compatibility with OpenHAb
@@ -301,69 +321,102 @@ char * readSensor() {
   getTemperature(addr1, &temperature1) ;
   getTemperature(addr2, &temperature2) ;
 
+  busMsg.WaterTemp = temperature1;
+  busMsg.AirTemp = temperature2;
+
+
   char temperatureStr[2][5];
 
   dtostrf(temperature1, 2, 1, temperatureStr[0]);
   dtostrf(temperature2, 2, 1, temperatureStr[1]);
- 
-//sprintf(buf, "PH[%s-%s]{%s-%s}(%s-%s-%s)", sensorStr[0], alarmStr[0], sensorStr[1], alarmStr[1],temperatureStr[0],temperatureStr[1],sensorStr[2]);
-  sprintf(buf, "PH[%s]", sensorStr[0]);
-  
+
+
+  memset (&msgLine3, '\0', 20);
+  memset (&msgLine2, '\0', 20);
+  sprintf(msgLine2, "Cl[%s]Al{%s}Eau(%s)", sensorStr[0], alarmStr[0], temperatureStr[0]);
+  sprintf(msgLine3, "Ph[%s]Al{%s}Air(%s)", sensorStr[1], alarmStr[1], temperatureStr[1]);
+  // sprintf(buf, "ORP[%s-%s]{%s-%s}(%s-%s-%s)", sensorStr[0], alarmStr[0], sensorStr[1], alarmStr[1], temperatureStr[0], temperatureStr[1], sensorStr[2]);
+  //sprintf(buf, "PH[%s]", sensorStr[0]);
+  u8g.firstPage();
+  do {
+    drawAll();
+  } while ( u8g.nextPage() );
+
   return buf;
 
 }
+
+
 void checkInjection() {
+  strcpy(msgLine1, "Check injection start");
+  long remaining = 0;
+  u8g.firstPage();
+  do {
+    drawAll();
+  } while ( u8g.nextPage() );
+
+  for (int i = 0; i < 2; i++) {
+    if (injInProgress[i]) {
+      remaining = millis() - injStart[i];
+      if ( remaining > injTime[i]) {
+        digitalWrite (injRelay[i], LOW);
+        digitalWrite (LED_PIN, LOW);
+        injInProgress[i] = false;
+        injReq[i] = false;
+
+        if (i == 0) {
+          strcpy(msgLine2, "Cl inj done");
+        } else {
+          strcpy(msgLine3, "Ph inj done");
+        }
 
 
-  if (injClInProgress) {
-    if (millis() - injClStart > injClTime) {
-      digitalWrite (CL_RELAY_PIN, LOW);
-      digitalWrite (LED_PIN, LOW);
-      injClInProgress = false;
-      injClReq = false;
-      strcpy(msgLine3, "Inj Finished");
-      u8g.firstPage();
-      do {
-        drawAll();
-      } while ( u8g.nextPage() );
+        //return;
 
-      return;
+      } else {
+        if (i == 0) {
+          memset(&msgLine2, '\0', 20);
+          sprintf(msgLine2, "Cl progrs[%9ld]", remaining);
+        } else {
+          memset(&msgLine3, '\0', 20);
+          sprintf(msgLine3, "Ph progrs[%9ld]", remaining);
+        }
+      }
+
+    } else if (injReq[i]) {
+      // do not redo an injection in the same 30 mins
+      remaining = millis() - injStart[i];
+      if ( remaining < delayInjection) {
+        if (i == 0) {
+          memset(&msgLine2, '\0', 20);
+          sprintf(msgLine2, "Cl delay[%9ld]", remaining);
+        } else {
+          memset(&msgLine3, '\0', 20);
+          sprintf(msgLine3, "Ph delay[%9ld]", remaining);
+        }
+
+        injReq[i] = false;
+
+
+      } else  {
+        digitalWrite (injRelay[i], HIGH);
+        digitalWrite (LED_PIN, HIGH);
+        injInProgress[i] = true;
+        injStart[i] = millis();
+        if (i == 0) {
+          strcpy(msgLine2, "Cl injection Start");
+        } else {
+          strcpy(msgLine3, "Ph injection Start");
+        }
+
+      }
 
     }
-    sprintf(message, "progress[%15ld]", atol(millis() - injClStart ) );
-    strcpy(msgLine3, message);
-    u8g.firstPage();
-    do {
-      drawAll();
-    } while ( u8g.nextPage() );
-    return;
   }
-
-  if (injClReq) {
-    // do not redo an injection in the same 30 mins
-    if ( millis() - injClStart < delayInjection) {
-      sprintf(message, "wait[%15ld]", atol(millis() - injClStart ) );
-      strcpy(msgLine3, message);
-      u8g.firstPage();
-      do {
-        drawAll;
-      } while ( u8g.nextPage() );
-      injClReq = false;
-
-
-    } else  {
-      digitalWrite (CL_RELAY_PIN, HIGH);
-      digitalWrite (LED_PIN, HIGH);
-      injClInProgress = true;
-      injClStart = millis();
-      strcpy(msgLine3, "Injection Start");
-      u8g.firstPage();
-      do {
-        drawAll();
-      } while ( u8g.nextPage() );
-    }
-
-  }
+  u8g.firstPage();
+  do {
+    drawAll();
+  } while ( u8g.nextPage() );
 }
 
 
@@ -371,40 +424,72 @@ void checkInjection() {
 void checkInstructions() {
   //don't read during injection to avoid disturbance
 
-  if (injClInProgress) {
-    return;
-  }
+
 
   // injClTime = 0;
-  strcpy(msgLine2, instructions);
+  strcpy(msgLine1, instructions);
   u8g.firstPage();
   do {
     drawAll();
   } while ( u8g.nextPage() );
 
-  if (instructions[0] == 'C') {
-    injClReq = true;
+  if (instructions[0] == 'R') {
+    resetFunc();
+  }
+  if (instructions[0] == 'C' || instructions[0] == 'P') {
+    int i = 3;
+    switch (instructions[0])
+    {
+      case 'C':
+        i = 0;
+        break;
 
-    injClTimeStr[0] = instructions[3];
-    injClTimeStr[1] = '\0';
-    strcpy(msgLine2, injClTimeStr);
+      case 'P':
+        i = 1;
+        break;
+
+      default:
+        break;
+    }
+
+    if (injInProgress[i]) {
+      //should not happen, exit the check
+      return;
+    }
+    injReq[i] = true;
+    injTimeStr[i][0] = instructions[2];
+    injTimeStr[i][1] = instructions[3];
+    //  instructions.copy(injTimeStr[i],3,1);
+    injTimeStr[i][2] = '\0';
+    strcpy(msgLine3, injTimeStr[i]);
     u8g.firstPage();
     do {
       drawAll();
     } while ( u8g.nextPage() );
 
 
-    injClTime = atol(injClTimeStr) * 1000 * 60 ;
-    sprintf(message, "inj time[%15ld]", injClTime);
-    strcpy(msgLine2, message);
+
+    injTime[i] = atol(injTimeStr[i]) * 1000 * 60 ;
+    if (i == 0) {
+      memset(&msgLine2, '\0', 20);
+      sprintf(msgLine2, "Cl inj req[%i]", atoi(injTimeStr[i]));
+    } else {
+      memset(&msgLine3, '\0', 20);
+      sprintf(msgLine3, "Ph inj req[%i]", atoi(injTimeStr[i]));
+    }
+    // sprintf(message, "inj time[%i]", atoi(injTimeStr[i]));
+
+    //strcpy(msgLine2, message);
     u8g.firstPage();
     do {
       drawAll();
     } while ( u8g.nextPage() );
+    delay(2000);
 
 
   } else {
-    strcpy(msgLine3, "no request");
+    sprintf(msgLine1, "free ram[%i]", freeRam());
+    // strcpy(msgLine3, "no request");
     u8g.firstPage();
     do {
       drawAll;
@@ -438,5 +523,12 @@ int getTemperature(byte* addr, float *temperature) {
   /* Calcul de la température en degré Celsius */
   *temperature = (int16_t) ((data[1] << 8) | data[0]) * 0.0625;
 
+}
+
+int freeRam ()
+{
+  extern int __heap_start, *__brkval;
+  int v;
+  return (int) &v - (__brkval == 0 ? (int) &__heap_start : (int) __brkval);
 }
 
