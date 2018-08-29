@@ -35,9 +35,9 @@ byte controlPins[] = {B00000000,
 
 // holds incoming values from 74HC4067
 float muxValues[] = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,};
-float factor[] = {1.0, 1.0, 0.117, 1.0, 1.0, 0.129, 0.1265, 0.1245, 0.3171, 0.1241, 0.03, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,};
-float offset[] = {0.0, 0.0, 149.3, 0.0, 0.0, 169.15, 164.87, 161.2, 370.29, 160.36, -1.8, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,};
-
+float factor[] = {1.0, 1.0, 0.117, 1.0, 1.0, 0.129, 0.1265, 0.1245, 0.3171, 0.1241, 0.01,0.01, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,};
+float offset[] = {0.0, 0.0, 149.3, 0.0, 0.0, 169.15, 164.87, 161.2, 370.29, 160.36, 2500, 2500, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,};
+//factor 11 0.03 -1.8
 int16_t adc0 = 0;
 int stat = 0;
 adsGain_t gain = GAIN_TWO;
@@ -71,9 +71,9 @@ void writeThingSpeak() {
   //ThingSpeak.setField(7, muxValues[9]);
   MQTTsendFloat("heater/temp/solarAccu",muxValues[9]);
   //ThingSpeak.setField(8, muxValues[10]);
-  MQTTsendFloat("heater/temp/general",muxValues[10]);
-  MQTTsendFloat("pool/conso/pump",muxValues[11]);
-  MQTTsendFloat("pool/conso/pac",muxValues[12]);
+  //MQTTsendFloat("heater/temp/general",muxValues[10]); n'était pas raccordé
+  MQTTsendFloat("pool/conso/pump",muxValues[10]);
+  MQTTsendFloat("pool/conso/pac",muxValues[11]);
   // send ram information
   int ram=freeRam();
   logMessageAndInt("Ram=", ram, true);
@@ -151,14 +151,12 @@ void displayData()
         Serial.print("accu 1");
         break;
       case 10:
-        Serial.print("chaudiere");
-        break;
-      case 11:
         Serial.print("pompe piscine conso");
         break;
-      case 12:
+      case 11:
         Serial.print("pompe chaleur conso");
         break;
+      
       default:
         Serial.print("input I");
         Serial.print(i + 1);
@@ -197,7 +195,13 @@ void readAnalog() {
       //Serial.println(adc0);
       //Voltage = (adc0 * 0.1875) / 1000 * factor[i];
       Voltage = (adc0 * 0.0625);
-      muxValues[i] = Voltage * factor[i] - offset[i]; // read the vlaue on that pin and store in array
+      if (i<10) {
+        muxValues[i] = Voltage * factor[i] - offset[i]; // read the vlaue on that pin and store in array
+      } else
+      {
+        muxValues[i] = (Voltage -offset[i])* factor[i] ;
+        
+      }
       delay(10); // let the mux switch
     }
 

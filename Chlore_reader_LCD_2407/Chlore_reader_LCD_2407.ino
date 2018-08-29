@@ -92,7 +92,7 @@ char msgLine1[30] = "";
 char msgLine2[30] = "";
 char msgLine3[30] = "";
 byte alarmPin[2] = {CL_ALARM_PIN, PH_ALARM_PIN};
-boolean alarm[2] = {false,false};
+boolean alarm[2] = {false, false};
 char alarmStr[2][2] = {"0", "0"};
 boolean state;
 
@@ -256,17 +256,16 @@ char * readSensor() {
     sensorValue[k] = 0;
   }
   // read the Chlore and PH value
-  for (int j = 0; j < NB_CYCLE; j++) {
-    for (int k = 0; k < 3; k++) {
+  for (int k = 0; k < 3; k++) {
+    for (int j = 0; j < NB_CYCLE; j++) {
       adc[k] = ads.readADC_SingleEnded(k);
-
       ADC_Value[k] = (adc[k] * 0.1875) / 1000;
-
       measure[k] += ADC_Value[k];
-
-
+      delay(50);
     }
-    delay(50);
+    
+    delay(1000);
+
   }
 
   for (int k = 0; k < 3; k++) {
@@ -302,10 +301,10 @@ char * readSensor() {
     state = digitalRead(alarmPin[k]);
     if (state == LOW) {
       alarm[k] = true;
-      strcpy( alarmStr[k],"1");
+      strcpy( alarmStr[k], "1");
     } else {
       alarm[k] = false;
-      strcpy(alarmStr[k],"0");
+      strcpy(alarmStr[k], "0");
     }
   }
 
