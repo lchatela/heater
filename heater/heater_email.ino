@@ -26,13 +26,13 @@ byte sendEmail(String subject, int errType)
 
   Serial.println(F("Sending User"));
   //// Change to your base64 encoded user
-  client.println(F("ZXJyb3JAb2tvLmNvbQ=="));
+  client.println(F("removed=="));
   //
   if (!eRcv()) return 0;
   //
   Serial.println(F("Sending Password"));
   //// change to your base64 encoded password
-  client.println(F("dWFyWkFoTmQ2eHdB"));
+  client.println(F("removed"));
   //
   if (!eRcv()) return 0;
   //
