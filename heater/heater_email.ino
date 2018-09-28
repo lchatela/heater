@@ -43,7 +43,7 @@ byte sendEmail(String subject, int errType)
   //
   //// change to recipient address
   Serial.println(F("Sending To"));
-  client.println(F("RCPT To: <laurent.chatelain@gmail.com>"));
+  client.println(F("RCPT To: <toto@gmail.com>"));
   if (!eRcv()) return 0;
   //
   Serial.println(F("Sending DATA"));
@@ -53,7 +53,7 @@ byte sendEmail(String subject, int errType)
   Serial.println(F("Sending email"));
   //
   // change to recipient address
-  client.println(F("To: You <laurent.chatelain@gmail.com>"));
+  client.println(F("To: You <toto@gmail.com>"));
   //
   // change to your address
   client.println(F("From: Chaudiere <error@oko.com>"));
